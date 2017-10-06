@@ -48,8 +48,15 @@ extension Animation {
         return Animation<Either<A,B>> { time in
             return time <= ratio ? .left(self.value(time/ratio)) : .right(other.value((time-ratio)/(1-ratio)))
         }
-
     }
+    
+    func sequential<B>(ratio: RelativeTime = 0.5, _ other: @escaping (A) -> Animation<B>) -> Animation<Either<A,B>> {
+        let endValue = self.value(1)
+        return Animation<Either<A,B>> { time in
+            return time <= ratio ? .left(self.value(time/ratio)) : .right(other(endValue).value((time-ratio)/(1-ratio)))
+        }
+    }
+
 }
 
 // RelativeTime is never less than zero
@@ -192,18 +199,18 @@ class ViewController: UIViewController {
         }
         
         func makeAnimation(from: CGFloat, to: CGFloat) -> Animation<CGFloat> {
-            let target = from + (to-from)*1.2
             return Animation(from: from,
-                             to: target,
-                             curve: builtin(.easeIn)).sequential(ratio: 0.37,
-                     Animation(from: target, to: to, curve: builtin(.easeOut))).map { $0.value }
+                             to: from + (to-from)*1.2,
+                             curve: builtin(.easeIn)).sequential(ratio: 0.37, { t in
+                                Animation(from: t, to: to, curve: builtin(.easeOut))                                
+                             }).map { $0.value }
         }
         
         for (index, dot) in dots.enumerated() {
             view.addSubview(dot)
             let animation = makeAnimation(from: 0, to: 30).delay(by: Double(index) * 0.1, initialValue: 0)
             
-            driver.pendingAnimations.append(InterpretedAnimation(animation: animation, duration: 1, interpret: { value in
+            driver.pendingAnimations.append(InterpretedAnimation(animation: animation, duration: 3, interpret: { value in
                 dot.transform = CGAffineTransform(translationX: value, y: 0)
             }))
         }
